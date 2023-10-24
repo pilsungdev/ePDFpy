@@ -23,6 +23,12 @@ class MaskModule(QtCore.QObject):
         self.imageView = imageView
         self.mask_dict = {}
 
+        if (self.fp is not None) and os.path.isfile(self.fp):
+            with open(self.fp, 'r') as json_file:
+                self.mask_dict = json.load(json_file)
+            for k in self.mask_dict.keys():
+                self.mask_dict[k]['data'] = np.array(self.mask_dict[k]['data'])
+
         self.roi_creator: RoiCreater = None
         self.dropdown = DropDown(self)
         self.list_widget = ListWidget(self)
