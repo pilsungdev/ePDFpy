@@ -1,4 +1,3 @@
-from ui.advanced_fit import MainWindowAdvancedFit
 from file import file
 import pyqtgraph as pg
 import util
@@ -340,7 +339,6 @@ class PdfAnalysis(QtWidgets.QWidget):
 
     def sig_binding(self):
         self.controlPanel.fitting_factors.btn_auto_fit.clicked.connect(self.autofit)
-        self.controlPanel.fitting_factors.btn_advanced_fit.clicked.connect(self.advancedfit)
         self.controlPanel.fitting_factors.btn_manual_fit.clicked.connect(self.manualfit)
 
         # instant fit
@@ -422,26 +420,6 @@ class PdfAnalysis(QtWidgets.QWidget):
         self.graphPanel.graph_Iq.removeItem(self.graphPanel.graph_Iq.region)
         self.graphPanel.graph_Iq.region = None
         self.autofit()
-
-    def advancedfit(self):
-        if self.datacube.azavg is None:
-            QMessageBox.about(self, "", "You have to run profile extraction first.")
-            return
-        if self.datacube.element_nums is None:
-            QMessageBox.about(self, "", "You have to put element information.")
-            return
-        self.advanced_fit_window = MainWindowAdvancedFit(self.datacube, self.advanced_fit_window_close_event)
-        self.advanced_fit_window.show()
-        pass
-
-    def advanced_fit_window_close_event(self, idx_N, idx_qk, idx_Max_pix):
-        if not self.check_condition_instant_fit():
-            self.autofit()
-        ui_util.update_value(self.controlPanel.fitting_factors.spinbox_N, idx_N)
-        ui_util.update_value(self.controlPanel.fitting_factors.spinbox_fit_at_q, idx_qk)
-        idx_Max_q = pdf_calculator.pixel_to_q(idx_Max_pix, self.datacube.ds)
-        self.graph_Iq_panel.setting.spinBox_range_right.setValue(idx_Max_q)
-        self.manualfit()
 
     def dialog_to_range(self):
         left = self.controlPanel.fitting_factors.spinbox_q_range_left.value()
@@ -825,9 +803,7 @@ class ControlPanel(QtWidgets.QWidget):
 
             autofit_button_layout = QtWidgets.QHBoxLayout()
             self.btn_auto_fit = QtWidgets.QPushButton("Auto fitting")
-            self.btn_advanced_fit = QtWidgets.QPushButton("Advanced fitting")
             autofit_button_layout.addWidget(self.btn_auto_fit)
-            autofit_button_layout.addWidget(self.btn_advanced_fit)
             # self.btn_auto_fit.setMaximumWidth(30)
             # self.btn_auto_fit.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed,QtWidgets.QSizePolicy.Policy.Expanding)
 
@@ -907,7 +883,6 @@ class ControlPanel(QtWidgets.QWidget):
 
             layout.addLayout(autofit_button_layout,2,0,1,5)
             # layout.addWidget(self.btn_auto_fit, 2, 0,1,2)
-            # layout.addWidget(self.btn_advanced_fit, 2, 2, 1, 3)
 
             layout.addWidget(ui_util.QHLine(),3,0,1,5)
 
