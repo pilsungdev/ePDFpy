@@ -126,7 +126,7 @@ class PDFCube(Cube):
 
     def get_display_img(self):
         assert isinstance(self.data, np.ndarray) and self.data.ndim == 2, "Expected 2d numpy array"
-        self.img_display = np.log(np.abs(self.data) + 1)
+        self.img_display = np.log(np.abs(self.data.astype(float)) + 1)
         self.img_display = self.img_display / self.img_display.max() * 255
         return self.img_display
 
