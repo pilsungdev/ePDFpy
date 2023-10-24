@@ -24,12 +24,6 @@ class ProfileExtraction(QtWidgets.QWidget):
         self.dc:PDFCube = None
 
 
-
-        # for text
-        # self.menu_open_azavg_only(np.loadtxt("/mnt/experiment/TEM diffraction/201126 (test)/sample38_TiTa_annealed/Analysis ePDFpy/Camera 230 mm Ceta 20201126 1649_40s_20f_area01.azavg.txt"))
-        # self.menu_open_azavg_only(np.loadtxt(r"V:\experiment\TEM diffraction\201126 (test)\sample38_TiTa_annealed\Analysis ePDFpy\Camera 230 mm Ceta 20201126 1649_40s_20f_area01.azavg.txt"))
-        ##
-
     def init_ui(self):
         self.control_panel = ControlPanel(self.Dataviewer, self)
         self.img_panel = ImgPanel()
@@ -69,15 +63,6 @@ class ProfileExtraction(QtWidgets.QWidget):
 
 
     def sig_binding(self):
-        # self.controlPanel.openFilePanel.open_img_file.triggered.connect(self.menu_open_image_file)
-        # self.controlPanel.openFilePanel.open_img_folder.triggered.connect(self.menu_open_image_stack)
-        # self.controlPanel.openFilePanel.open_preset.triggered.connect(self.menu_load_preset)
-        # self.controlPanel.openFilePanel.save_preset.triggered.connect(self.menu_save_preset)
-        # self.controlPanel.openFilePanel.open_presets.triggered.connect(self.menu_open_preset_stack)
-        # self.controlPanel.openFilePanel.save_presets.triggered.connect(self.menu_save_presets)
-        # self.controlPanel.openFilePanel.open_azavg_only.triggered.connect(self.menu_open_azavg_only)
-        # self.controlPanel.openFilePanel.save_azavg_only.triggered.connect(self.menu_save_azavg_only)
-        # self.controlPanel.openFilePanel.combo_dataQuality.currentIndexChanged.connect(self.set_data_quality)
 
         self.control_panel.operationPanel.btn_find_center.clicked.connect(lambda: (self.find_center(),self.update_img()))
         self.control_panel.operationPanel.btn_get_azimuthal_avg.clicked.connect(self.get_azimuthal_value)
