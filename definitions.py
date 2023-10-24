@@ -11,7 +11,6 @@ KIRKLAND_PATH = os.path.join(ROOT_DIR, 'assets/Parameter_files/Kirkland_2010.txt
 LOBATO_PATH = os.path.join(ROOT_DIR, 'assets/Parameter_files/Lobato_2014.txt')
 
 MASK_PATH = os.path.join(ROOT_DIR, 'assets/mask_data.json')
-MASK_FOLDER_PATH = os.path.join(ROOT_DIR, 'assets/mask')
 
 COLORCUBE = os.path.join(ROOT_DIR, 'assets/colorcube256.csv')
 ATOMIC_SYMBOL_PATH = os.path.join(ROOT_DIR, "assets/Parameter_files/atomicNumber-symbol.csv")
