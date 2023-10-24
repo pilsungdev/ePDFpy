@@ -1,15 +1,11 @@
 import pyqtgraph as pg
-import PyQt5
-from PyQt5 import QtWidgets, Qt
+from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QFileDialog
-import sys
-import hyperspy.api as hs
 import numpy as np
 import cv2
 import os
-import file
+from file import file
 from pathlib import Path
-from PyQt5.QtCore import QItemSelectionModel
 
 
 # w2 = w.addLayout(row=0, col=1)
@@ -41,6 +37,7 @@ from PyQt5.QtCore import QItemSelectionModel
 #     # widget.show()
 #
 #
+
 class RoiCreater(QtWidgets.QWidget):
     def __init__(self, image, save_mask_folder=None, mask=None, func_after_mask_selected=None):
         QtWidgets.QWidget.__init__(self)
@@ -49,6 +46,8 @@ class RoiCreater(QtWidgets.QWidget):
 
         if isinstance(image, pg.ImageView):
             self.image = image.image
+        else:
+            self.image = image
 
         layout = QtWidgets.QVBoxLayout()
         self.imageView = pg.ImageView()
@@ -98,10 +97,8 @@ class RoiCreater(QtWidgets.QWidget):
 
 
     def update_image(self, img=None):
-        print("img1:",type(img))
         if img is None:
             img = self.image
-            print("img2:",type(img))
         if self.radio_raw.isChecked():
             self.imageView.setImage(img)
         if self.radio_root.isChecked():
@@ -141,7 +138,8 @@ class RoiCreater(QtWidgets.QWidget):
             fp = fp + ".csv"
         np.savetxt(fp, img, delimiter=',', fmt='%s')
         print("save to {}".format(fp))
-        self.func_after_mask_selected()
+        if self.func_after_mask_selected is not None:
+            self.func_after_mask_selected()
         self.close()
         return
 
@@ -190,7 +188,6 @@ class MaskDropdown(QtWidgets.QComboBox):
         self.addItem("None")
         self.addItems(self.mask_dict.keys())
         self.addItem("[Edit]")
-        self.addItem("[New]")
 
     def get_current_mask(self):
         if not self.mask_dict:
@@ -205,27 +202,18 @@ class MaskDropdown(QtWidgets.QComboBox):
     def dropdown_event(self, idx):
         if idx == len(self.mask_dict)+1:
             # edit
-            self.listWidget = ListWidget(self.mask_dict)
+            self.listWidget = ListWidget(self.mask_dict, self.image)
             self.listWidget.show()
             self.listWidget.update()
-        if idx == len(self.mask_dict)+2:
-            # New
-            if (isinstance(self.image, pg.ImageView) and self.image.image) is None:
-                self.setCurrentIndex(0)
-                return
-
-            self.mask_widget = RoiCreater(image=self.image, save_mask_folder=self.mask_folder, func_after_mask_selected=self.func_after_mask_selected)
-            self.mask_widget.show()
-            self.mask_widget.update()
-
-
 
 
 class ListWidget(QtWidgets.QWidget):
-    def __init__(self, mask_dict):
+    def __init__(self, mask_dict, image):
         super().__init__()
         self.mask_dict = mask_dict
+        self.image = image
         self.QList = QtWidgets.QListWidget()
+        self.items = list(self.mask_dict.keys())
         self.QList.addItems(self.items)
         # self.QList.itemDoubleClicked.connect()
         self.layout = QtWidgets.QGridLayout()
@@ -233,16 +221,21 @@ class ListWidget(QtWidgets.QWidget):
 
         self.btn_move_up = QtWidgets.QPushButton("△")
         self.btn_move_down = QtWidgets.QPushButton("▽")
-        self.btn_del = QtWidgets.QPushButton("del")
+        self.btn_del = QtWidgets.QPushButton("Del")
+        self.btn_edit = QtWidgets.QPushButton("Edit")
+        self.btn_new = QtWidgets.QPushButton("New")
 
         self.btn_move_up.clicked.connect(self.btn_move_up_clicked)
         self.btn_move_down.clicked.connect(self.btn_move_down_clicked)
         self.btn_del.clicked.connect(self.btn_del_clicked)
 
-        self.layout.addWidget(self.QList, 0, 0, 3, 2)
+        self.layout.addWidget(self.QList, 0, 0, 5, 2)
         self.layout.addWidget(self.btn_move_up, 0, 2)
         self.layout.addWidget(self.btn_move_down, 1, 2)
         self.layout.addWidget(self.btn_del, 2, 2)
+        self.layout.addWidget(self.btn_edit, 3, 2)
+        self.layout.addWidget(self.btn_new, 4, 2)
+
 
     def btn_move_up_clicked(self):
         indexes = self.QList.selectedIndexes()

@@ -1,0 +1,15 @@
+h5py==3.10.0
+hyperspy==1.7.5
+matplotlib==3.7.3
+mrcfile==1.4.3
+numba==0.58.1
+numpy==1.24.4
+opencv-python==4.8.1.78
+pandas==2.0.3
+PyQt5==5.15.10
+PyQt5-Qt5==5.15.2
+PyQt5-sip==12.13.0
+pyqtgraph==0.13.3
+requests==2.31.0
+scikit-image==0.21.0
+scipy==1.10.1

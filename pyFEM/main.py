@@ -4,7 +4,7 @@ from PyQt5 import QtWidgets
 import pyqtgraph as pg
 import numpy as np
 import pandas as pd
-from calculate import image_process, polar_transform, fem_calculation
+from calculate import image_process, polar_transform, elliptical_correction
 from ui import ui_util
 from ui.roi_selector import roi_selector
 import definitions
@@ -78,7 +78,10 @@ class MainViewer(QMainWindow):
             self.dc = dc1.reshape([-1, dc1.shape[0], dc1.shape[1]])
         elif ".dm3" in os.path.splitext(path)[1]:
             self.dc = hs.load(path).data
+        elif ".dm4" in os.path.splitext(path)[1]:
+            self.dc = hs.load(path).data
         else:
+            print("Not supported files")
             return
 
         ui_util.update_value(self.control_panel.grp_ellipse.spinbox_x,self.dc.shape[1] // 2)
@@ -302,8 +305,6 @@ class ControlPanel(QWidget):
 
             self.btn_fem = QtWidgets.QPushButton("run FEM")
             self.layout.addWidget(self.btn_fem)
-
-
 
 
 class TopMenu(QWidget):

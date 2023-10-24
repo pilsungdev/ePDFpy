@@ -1,18 +1,13 @@
-import typing
-
-from ui.advanced_fit import AdvancedFitWindow, MainWindowAdvancedFit
-import file
-from datacube import DataCube
+from file import file
 import pyqtgraph as pg
 import util
 from calculate import pdf_calculator
 from PyQt5.QtWidgets import QMessageBox
 import ui.ui_util as ui_util
-from PyQt5 import QtCore, QtWidgets, QtGui
-import os
+from PyQt5 import QtCore, QtWidgets
 import numpy as np
-import definitions
 from calculate import q_range_selector
+from datacube.cube import PDFCube
 
 pg.setConfigOptions(antialias=True)
 
@@ -21,7 +16,7 @@ class PdfAnalysis(QtWidgets.QWidget):
     def __init__(self, Dataviewer):
         super().__init__()
         self.Dataviewer = Dataviewer
-        self.datacube = DataCube()
+        self.datacube = PDFCube()
         self.datacube.analyser = self
         if self.datacube.element_nums is None:
             self.datacube.element_nums = []
@@ -44,7 +39,7 @@ class PdfAnalysis(QtWidgets.QWidget):
 
         self.update_graph()
 
-    def put_datacube(self,datacube):
+    def put_datacube(self, datacube):
         self.controlPanel.blockSignals(True)
         self.datacube = datacube
         if self.datacube.element_nums is None:
@@ -101,7 +96,7 @@ class PdfAnalysis(QtWidgets.QWidget):
         if self.datacube.pixel_start_n is None:
             if self.datacube.q is None:
                 self.datacube.pixel_start_n = q_range_selector.find_first_peak(self.datacube.azavg)
-                if self.datacube.pixel_start_n is not 0:
+                if self.datacube.pixel_start_n != 0:
                     self.datacube.pixel_start_n = self.datacube.pixel_start_n - 1 # why ?
                 self.datacube.pixel_end_n = len(self.datacube.azavg) - 1
             else:
@@ -111,6 +106,8 @@ class PdfAnalysis(QtWidgets.QWidget):
         self.datacube.Iq = self.datacube.azavg[self.datacube.pixel_start_n:self.datacube.pixel_end_n+1]
         px = np.arange(self.datacube.pixel_start_n,self.datacube.pixel_end_n+1)
         self.datacube.q = pdf_calculator.pixel_to_q(px,self.datacube.ds)
+
+        self.datacube.full_q = pdf_calculator.pixel_to_q(np.arange(len(self.datacube.azavg)),self.datacube.ds)
 
         azavg_px = np.arange(len(self.datacube.azavg))
         self.datacube.all_q = pdf_calculator.pixel_to_q(azavg_px,self.datacube.ds)
@@ -181,37 +178,17 @@ class PdfAnalysis(QtWidgets.QWidget):
 
         self.setLayout(self.layout)
 
-
     def load_default_setting(self):
-        if util.default_setting.calibration_factor is not None and self.datacube.ds is None:
-            # self.controlPanel.fitting_elements.spinbox_ds.setValue(util.default_setting.calibration_factor)
-            self.datacube.ds = util.default_setting.calibration_factor
-        if util.default_setting.dr is not None and self.datacube.dr is None:
-            # self.controlPanel.fitting_factors.spinbox_dr.setValue(util.default_setting.dr)
-            self.datacube.dr = util.default_setting.dr
-        if util.default_setting.damping is not None and self.datacube.damping is None:
-            # self.controlPanel.fitting_factors.spinbox_damping.setValue(util.default_setting.damping)
-            self.datacube.damping = util.default_setting.damping
-        if util.default_setting.rmax is not None and self.datacube.rmax is None:
-            # self.controlPanel.fitting_factors.spinbox_rmax.setValue(util.default_setting.rmax)
-            self.datacube.rmax = util.default_setting.rmax
-        if util.default_setting.electron_voltage is not None and self.datacube.electron_voltage is None:
-            # self.controlPanel.fitting_factors.spinbox_electron_voltage.setText(util.default_setting.electron_voltage)
-            self.datacube.electron_voltage = util.default_setting.electron_voltage
-
-        # steps
-        if util.default_setting.calibration_factor_step is not None:
-            self.controlPanel.fitting_elements.spinbox_ds_step.setText(util.default_setting.calibration_factor_step)
-        if util.default_setting.fit_at_q_step is not None:
-            self.controlPanel.fitting_factors.spinbox_fit_at_q_step.setText(util.default_setting.fit_at_q_step)
-        if util.default_setting.N_step is not None:
-            self.controlPanel.fitting_factors.spinbox_N_step.setText(util.default_setting.N_step)
-        if util.default_setting.dr_step is not None:
-            self.controlPanel.fitting_factors.spinbox_dr_step.setText(util.default_setting.dr_step)
-        if util.default_setting.damping_step is not None:
-            self.controlPanel.fitting_factors.spinbox_damping_step.setText(util.default_setting.damping_step)
-        if util.default_setting.rmax_step is not None:
-            self.controlPanel.fitting_factors.spinbox_rmax_step.setText(util.default_setting.rmax_step)
+        if self.datacube.ds is None:
+            self.datacube.ds = self.controlPanel.fitting_elements.spinbox_ds.value()
+        if self.datacube.dr is None:
+            self.datacube.dr = self.controlPanel.fitting_factors.spinbox_dr.value()
+        if self.datacube.damping is None:
+            self.datacube.damping = self.controlPanel.fitting_factors.spinbox_damping.value()
+        if self.datacube.rmax is None:
+            self.datacube.rmax = self.controlPanel.fitting_factors.spinbox_rmax.value()
+        if self.datacube.electron_voltage is None:
+            self.datacube.electron_voltage = self.controlPanel.fitting_factors.spinbox_electron_voltage.text()
 
     def element_initial_load(self):
         self.element_presets = file.load_element_preset()
@@ -284,7 +261,6 @@ class PdfAnalysis(QtWidgets.QWidget):
 
         file.save_element_preset(self.element_presets)
         self.element_initial_load()
-
 
     def put_data_to_ui(self):
         # elements
@@ -363,7 +339,6 @@ class PdfAnalysis(QtWidgets.QWidget):
 
     def sig_binding(self):
         self.controlPanel.fitting_factors.btn_auto_fit.clicked.connect(self.autofit)
-        self.controlPanel.fitting_factors.btn_advanced_fit.clicked.connect(self.advancedfit)
         self.controlPanel.fitting_factors.btn_manual_fit.clicked.connect(self.manualfit)
 
         # instant fit
@@ -389,6 +364,28 @@ class PdfAnalysis(QtWidgets.QWidget):
 
         self.controlPanel.fitting_elements.btn_apply_all.clicked.connect(self.btn_clicked_apply_to_all)
 
+        self.controlPanel.save_load.open_azavg_file.triggered.connect(self.Dataviewer.menu_open_azavg_only)
+        self.controlPanel.save_load.open_azavg_stack_csv.triggered.connect(
+            lambda: self.Dataviewer.menu_open_azavg_stack("csv"))
+        self.controlPanel.save_load.open_azavg_stack_txt.triggered.connect(
+            lambda: self.Dataviewer.menu_open_azavg_stack("txt"))
+        self.controlPanel.save_load.open_azavg_stack_azavg_csv.triggered.connect(
+            lambda: self.Dataviewer.menu_open_azavg_stack("azavg.csv"))
+        self.controlPanel.save_load.open_azavg_stack_azavg_txt.triggered.connect(
+            lambda: self.Dataviewer.menu_open_azavg_stack("azavg.txt"))
+        self.controlPanel.save_load.open_preset_file.triggered.connect(
+            self.Dataviewer.menu_load_preset)
+        self.controlPanel.save_load.open_preset_stack.triggered.connect(
+            self.Dataviewer.menu_open_preset_stack)
+        self.controlPanel.save_load.save_current_preset_as.triggered.connect(
+            self.Dataviewer.menu_save_current_preset_as)
+        self.controlPanel.save_load.save_all_preset_as.triggered.connect(
+            self.Dataviewer.menu_save_all_preset_as)
+        self.controlPanel.save_load.save_all_preset.triggered.connect(
+            self.Dataviewer.menu_save_all_preset)
+        self.controlPanel.save_load.save_current_preset.triggered.connect(
+            self.Dataviewer.menu_save_current_preset)
+
     def btn_clicked_apply_to_all(self):
         reply = QMessageBox.question(self,'Message',
                                                'Are you sure to apply calibration factor and element data to all?',
@@ -396,10 +393,9 @@ class PdfAnalysis(QtWidgets.QWidget):
         if reply == QMessageBox.Yes:
             self.update_parameter()
             self.Dataviewer.apply_element_to_all(self.datacube)
-            print("Yes")
+            print("Apply calibration factor and element data to all")
         else:
-            print("No")
-
+            print("Cancel applying calibration factors and elements to all")
 
     def btn_radiotail_clicked(self):
         if hasattr(self.graphPanel.graph_Iq, "region") and self.graphPanel.graph_Iq.region is not None:
@@ -425,27 +421,6 @@ class PdfAnalysis(QtWidgets.QWidget):
         self.graphPanel.graph_Iq.region = None
         self.autofit()
 
-    def advancedfit(self):
-        if self.datacube.azavg is None:
-            QMessageBox.about(self, "", "You have to run profile extraction first.")
-            return
-        if self.datacube.element_nums is None:
-            QMessageBox.about(self, "", "You have to put element information.")
-            return
-        self.advanced_fit_window = MainWindowAdvancedFit(self.datacube, self.advanced_fit_window_close_event)
-        self.advanced_fit_window.show()
-        pass
-
-    def advanced_fit_window_close_event(self, idx_N, idx_qk, idx_Max_pix):
-        if not self.check_condition_instant_fit():
-            self.autofit()
-        ui_util.update_value(self.controlPanel.fitting_factors.spinbox_N, idx_N)
-        ui_util.update_value(self.controlPanel.fitting_factors.spinbox_fit_at_q, idx_qk)
-        idx_Max_q = pdf_calculator.pixel_to_q(idx_Max_pix, self.datacube.ds)
-        self.graph_Iq_panel.setting.spinBox_range_right.setValue(idx_Max_q)
-        self.manualfit()
-        pass
-
     def dialog_to_range(self):
         left = self.controlPanel.fitting_factors.spinbox_q_range_left.value()
         right = self.controlPanel.fitting_factors.spinbox_q_range_right.value()
@@ -470,18 +445,6 @@ class PdfAnalysis(QtWidgets.QWidget):
         self.range_fit()
 
     def update_parameter(self):
-        # default setting
-        util.default_setting.calibration_factor = self.controlPanel.fitting_elements.spinbox_ds.value()
-        util.default_setting.calibration_factor_step = self.controlPanel.fitting_elements.spinbox_ds_step.text()
-        util.default_setting.electron_voltage = self.controlPanel.fitting_factors.spinbox_electron_voltage.text()
-        util.default_setting.fit_at_q_step = self.controlPanel.fitting_factors.spinbox_fit_at_q_step.text()
-        util.default_setting.N_step = self.controlPanel.fitting_factors.spinbox_N_step.text()
-        util.default_setting.dr = self.controlPanel.fitting_factors.spinbox_dr.value()
-        util.default_setting.dr_step = self.controlPanel.fitting_factors.spinbox_dr_step.text()
-        util.default_setting.damping = self.controlPanel.fitting_factors.spinbox_damping.value()
-        util.default_setting.damping_step = self.controlPanel.fitting_factors.spinbox_damping_step.text()
-        util.default_setting.rmax = self.controlPanel.fitting_factors.spinbox_rmax.value()
-        util.default_setting.rmax_step = self.controlPanel.fitting_factors.spinbox_rmax_step.text()
 
         # elements
         self.datacube.element_nums.clear()
@@ -663,16 +626,67 @@ class ControlPanel(QtWidgets.QWidget):
     def __init__(self, mainWindow: QtWidgets.QMainWindow):
         QtWidgets.QWidget.__init__(self)
         self.layout = QtWidgets.QHBoxLayout()
+
+        self.temp_layout = QtWidgets.QVBoxLayout()
+        self.save_load = self.SaveLoadPanel("Save and Load", mainWindow)
         self.fitting_elements = self.FittingElements(mainWindow)
+        self.temp_layout.addWidget(self.save_load)
+        self.temp_layout.addWidget(self.fitting_elements)
+
         self.fitting_factors = self.FittingFactors()
 
-        self.layout.addWidget(self.fitting_elements)
+
+        self.layout.addLayout(self.temp_layout)
         self.layout.addWidget(self.fitting_factors)
 
         # self.resize(600,1000)
         self.setLayout(self.layout)
         self.layout.setContentsMargins(2,2,2,2)
 
+    class SaveLoadPanel(QtWidgets.QGroupBox):
+        def __init__(self, arg, mainWindow: QtWidgets.QMainWindow):
+            QtWidgets.QGroupBox.__init__(self, arg)
+            menubar = mainWindow.menuBar()
+            menubar.setNativeMenuBar(False)
+            open_menu = menubar.addMenu("&Open")
+            save_menu = menubar.addMenu("&Save")
+
+            self.open_azavg_file = QtWidgets.QAction("Open azavg &file", self)
+            open_menu.addAction(self.open_azavg_file)
+
+            self.open_azavg_stack = open_menu.addMenu("Open azavg &stack")
+            self.open_azavg_stack_txt = QtWidgets.QAction("txt file stack")
+            self.open_azavg_stack_csv = QtWidgets.QAction("csv file stack")
+            self.open_azavg_stack_azavg_txt = QtWidgets.QAction("azavg.txt file stack")
+            self.open_azavg_stack_azavg_csv = QtWidgets.QAction("azavg.csv file stack")
+            self.open_azavg_stack_azavg_others = QtWidgets.QAction("Others ...")
+            self.open_azavg_stack.addAction(self.open_azavg_stack_txt)
+            self.open_azavg_stack.addAction(self.open_azavg_stack_csv)
+            self.open_azavg_stack.addAction(self.open_azavg_stack_azavg_txt)
+            self.open_azavg_stack.addAction(self.open_azavg_stack_azavg_csv)
+            self.open_azavg_stack.addAction(self.open_azavg_stack_azavg_others)
+            self.open_azavg_stack_azavg_others.setDisabled(True)
+
+            open_menu.addSeparator()
+
+            self.open_preset_file = QtWidgets.QAction("Open &preset file", self)
+            self.open_preset_stack = QtWidgets.QAction("Open p&reset stack", self)
+
+            open_menu.addAction(self.open_preset_file)
+            open_menu.addAction(self.open_preset_stack)
+
+            self.save_current_preset = QtWidgets.QAction("Save current preset", self)
+            self.save_current_preset_as = QtWidgets.QAction("Save current preset as ...", self)
+            self.save_all_preset = QtWidgets.QAction("Save all preset", self)
+            self.save_all_preset_as = QtWidgets.QAction("Save all preset as ...", self)
+            save_menu.addAction(self.save_current_preset)
+            save_menu.addAction(self.save_current_preset_as)
+            save_menu.addAction(self.save_all_preset)
+            save_menu.addAction(self.save_all_preset_as)
+
+            self.layout = QtWidgets.QHBoxLayout()
+            self.setLayout(self.layout)
+            self.layout.addWidget(menubar)
 
     class FittingElements(QtWidgets.QGroupBox):
         def __init__(self, mainWindow:QtWidgets.QMainWindow):
@@ -682,9 +696,7 @@ class ControlPanel(QtWidgets.QWidget):
             layout.setSpacing(0)
             # layout.setContentsMargins(10, 0, 5, 5)
             menubar = self.create_menu(mainWindow)
-            layout.addWidget(menubar,alignment=QtCore.Qt.AlignCenter)
-
-
+            layout.addWidget(menubar, alignment=QtCore.Qt.AlignCenter)
 
             self.element_group_widgets = [ControlPanel.element_group("Element" + str(num)) for num in range(1, 6)]
             for element_group_widgets in self.element_group_widgets:
@@ -694,14 +706,11 @@ class ControlPanel(QtWidgets.QWidget):
 
             lbl_calibration_factor = QtWidgets.QLabel("Calibration factors")
 
-
             self.spinbox_ds = ui_util.DoubleSpinBox()
-            self.spinbox_ds.setValue(0.001)
             self.spinbox_ds_step = ui_util.DoubleLineEdit()
             self.spinbox_ds_step.textChanged.connect(
                 lambda : self.spinbox_ds.setSingleStep(float(self.spinbox_ds_step.text())))
             self.spinbox_ds.setRange(0,1e+10)
-            self.spinbox_ds_step.setText("0.01")
 
             layout_calibration_factor = QtWidgets.QHBoxLayout()
             layout_calibration_factor.addWidget(lbl_calibration_factor)
@@ -713,8 +722,6 @@ class ControlPanel(QtWidgets.QWidget):
 
             self.btn_apply_all = QtWidgets.QPushButton("Apply to all")
             layout.addWidget(self.btn_apply_all)
-
-
 
             self.setLayout(layout)
 
@@ -796,9 +803,7 @@ class ControlPanel(QtWidgets.QWidget):
 
             autofit_button_layout = QtWidgets.QHBoxLayout()
             self.btn_auto_fit = QtWidgets.QPushButton("Auto fitting")
-            self.btn_advanced_fit = QtWidgets.QPushButton("Advanced fitting")
             autofit_button_layout.addWidget(self.btn_auto_fit)
-            autofit_button_layout.addWidget(self.btn_advanced_fit)
             # self.btn_auto_fit.setMaximumWidth(30)
             # self.btn_auto_fit.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed,QtWidgets.QSizePolicy.Policy.Expanding)
 
@@ -878,7 +883,6 @@ class ControlPanel(QtWidgets.QWidget):
 
             layout.addLayout(autofit_button_layout,2,0,1,5)
             # layout.addWidget(self.btn_auto_fit, 2, 0,1,2)
-            # layout.addWidget(self.btn_advanced_fit, 2, 2, 1, 3)
 
             layout.addWidget(ui_util.QHLine(),3,0,1,5)
 
@@ -929,7 +933,6 @@ class ControlPanel(QtWidgets.QWidget):
             layout.addWidget(self.combobox)
             layout.addWidget(self.element_ratio)
             self.setLayout(layout)
-
 
 if __name__ == "__main__":
     qtapp = QtWidgets.QApplication([])

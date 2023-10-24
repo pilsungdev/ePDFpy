@@ -1,14 +1,15 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 import sys
 import pyqtgraph as pg
-import file
+from file import file
 import util
-from datacube import DataCube
+from datacube.cube import PDFCube
 from typing import List
 from ui.pdfanalysis import PdfAnalysis
 from PyQt5.QtWidgets import QMessageBox
 import ui.selection_analysis.averaging_multiple_gr as averaging_multiple_gr
 from ui import ui_util
+import json
 
 pg.setConfigOptions(antialias=True)
 import definitions
@@ -17,19 +18,24 @@ from ui.profile_extraction import ProfileExtraction
 class DataViewer(QtWidgets.QMainWindow):
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self)
+
+        # Main Window UI
         self.top_menu = self.TopMenu(self)
         self.bottom = QtWidgets.QTabWidget()
 
+        # Main Window Tab
         self.profile_extraction = ProfileExtraction(self)
         self.PDF_analyser = PdfAnalysis(self)
 
         self.bottom.addTab(self.profile_extraction,"Profile extraction")
         self.bottom.addTab(self.PDF_analyser, "PDF analysis")
 
-        self.dcs: List[DataCube] = []
+        # DataCube initialization
+        self.dcs: List[PDFCube] = []
 
         self.setStyleSheet(ui_util.get_style_sheet())
 
+        # Layout Setting
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.top_menu)
         layout.addWidget(self.bottom)
@@ -43,20 +49,97 @@ class DataViewer(QtWidgets.QMainWindow):
         self.sig_binding()
         self.resize(1300,800)
 
+        self.default_setting_dic = {}
+        self.bind_default_setting()
+        self.load_default_setting()
+
+    def load_default_setting(self):
+        # todo: load
+        load_dic = json.load(open(definitions.DEFAULT_JSON_PATH))
+        for name, value in load_dic.items():
+            if name not in self.default_setting_dic.keys():
+                continue
+            widget = self.default_setting_dic[name]
+            if issubclass(type(widget), QtWidgets.QCheckBox):
+                widget: QtWidgets.QCheckBox
+                widget.setChecked(value)
+            elif issubclass(type(widget), QtWidgets.QDoubleSpinBox):
+                widget: QtWidgets.QDoubleSpinBox
+                widget.setValue(value)
+            elif issubclass(type(widget), QtWidgets.QSpinBox):
+                widget: QtWidgets.QSpinBox
+                widget.setValue(value)
+            elif issubclass(type(widget), QtWidgets.QTextEdit):
+                widget: QtWidgets.QTextEdit
+                widget.setText(str(value))
+            elif issubclass(type(widget), QtWidgets.QLineEdit):
+                widget: QtWidgets.QLineEdit
+                widget.setText(str(value))
+
+    def save_default_setting(self):
+        save_dic = {}
+        for name, widget in self.default_setting_dic.items():
+            if issubclass(type(widget), QtWidgets.QCheckBox):
+                widget: QtWidgets.QCheckBox
+                value = widget.isChecked()
+            elif issubclass(type(widget), QtWidgets.QDoubleSpinBox):
+                widget: QtWidgets.QDoubleSpinBox
+                value = widget.value()
+            elif issubclass(type(widget), QtWidgets.QSpinBox):
+                widget: QtWidgets.QSpinBox
+                value = widget.value()
+            elif issubclass(type(widget), QtWidgets.QTextEdit):
+                widget: QtWidgets.QTextEdit
+                value = widget.toPlainText()
+            elif issubclass(type(widget), QtWidgets.QLineEdit):
+                widget: QtWidgets.QLineEdit
+                value = widget.text()
+            save_dic.update({name: value})
+        save_dic = file.type_changer(save_dic)
+        json.dump(save_dic, open(definitions.DEFAULT_JSON_PATH, 'w'), indent=2)
+
+    def bind_default_setting(self):
+        update_dic = {
+            # profile extraction tab
+            "use_elliptical_correction": self.profile_extraction.control_panel.ellipticalCorrectionPanel.chkbox_use_elliptical_correction,
+            "show_center_line": self.profile_extraction.control_panel.settingPanel.chkBox_show_centerLine,
+            "show_beam_stopper_mask": self.profile_extraction.control_panel.settingPanel.chkBox_show_beam_stopper_mask,
+            # pdf analysis tab
+            "scattering_factor": self.PDF_analyser.controlPanel.fitting_elements.combo_scattering_factor,
+            "calibration_factor": self.PDF_analyser.controlPanel.fitting_elements.spinbox_ds,
+            "calibration_factor_step": self.PDF_analyser.controlPanel.fitting_elements.spinbox_ds_step,
+            "fit_at_q_step": self.PDF_analyser.controlPanel.fitting_factors.spinbox_fit_at_q_step,
+            "N_step": self.PDF_analyser.controlPanel.fitting_factors.spinbox_N_step,
+            "damping_step": self.PDF_analyser.controlPanel.fitting_factors.spinbox_damping_step,
+            "r_max_step": self.PDF_analyser.controlPanel.fitting_factors.spinbox_rmax_step,
+            "dr_step": self.PDF_analyser.controlPanel.fitting_factors.spinbox_dr_step,
+            "instant_update": self.PDF_analyser.controlPanel.fitting_factors.chkbox_instant_update,
+            "dr": self.PDF_analyser.controlPanel.fitting_factors.spinbox_dr,
+            "r_max": self.PDF_analyser.controlPanel.fitting_factors.spinbox_rmax,
+            "damping": self.PDF_analyser.controlPanel.fitting_factors.spinbox_damping,
+            "EV": self.PDF_analyser.controlPanel.fitting_factors.spinbox_electron_voltage,
+        }
+        self.default_setting_dic.update(update_dic)
+
+
     class TopMenu(QtWidgets.QWidget):
         def __init__(self, mainWindow):
             self.mainWindow = mainWindow
             QtWidgets.QWidget.__init__(self)
             layout = QtWidgets.QGridLayout()
             left_section = self.create_menu(mainWindow)
+            # left_section = QtWidgets.QWidget()
             center_section = self.create_navigator()
             right_section = self.create_data_quality()
-            # layout.addWidget(left_section)
             # layout.addWidget(center_section)
             # layout.addWidget(right_section)
+
+            # progress_bar = QtWidgets.QProgressBar()
+
             layout.addWidget(left_section,0,0,alignment=QtCore.Qt.AlignLeft)
-            layout.addWidget(center_section,0,1,alignment=QtCore.Qt.AlignCenter)
-            layout.addWidget(right_section,0,2,alignment=QtCore.Qt.AlignRight)
+            # layout.addWidget(progress_bar,0,1,alignment=QtCore.Qt.AlignLeft)
+            layout.addWidget(center_section,0,2,alignment=QtCore.Qt.AlignCenter)
+            layout.addWidget(right_section,0,3,alignment=QtCore.Qt.AlignRight)
 
             # layout.addWidget(center_section)
             layout.setSpacing(0)
@@ -66,63 +149,64 @@ class DataViewer(QtWidgets.QMainWindow):
         def create_menu(self, mainWindow: QtWidgets.QMainWindow):
             menubar = mainWindow.menuBar()
             menubar.setNativeMenuBar(False)
-            self.open_img_file = QtWidgets.QAction("Open &image file", self)
-            self.open_preset = QtWidgets.QAction("Open preset &file", self)
-            self.save_preset = QtWidgets.QAction("Save preset &file", self)
-            self.open_preset_stack = QtWidgets.QAction("Open preset &stack", self)
-            self.save_preset_stack = QtWidgets.QAction("Save preset &stack", self)
-            self.save_preset_option = QtWidgets.QAction("Save preset &option setting", self)
-            self.save_preset_option.setDisabled(True)
-            self.open_azavg_only = QtWidgets.QAction("Open &azavg only", self)
-            self.save_azavg_only = QtWidgets.QAction("Save &azavg only", self)
+            # self.open_img_file = QtWidgets.QAction("Open &image file", self)
+            # self.open_preset = QtWidgets.QAction("Open preset &file", self)
+            # self.save_preset = QtWidgets.QAction("Save preset &file", self)
+            # self.open_preset_stack = QtWidgets.QAction("Open preset &stack", self)
+            # self.save_preset_stack = QtWidgets.QAction("Save preset &stack", self)
+            # self.save_preset_option = QtWidgets.QAction("Save preset &option setting", self)
+            # self.save_preset_option.setDisabled(True)
+            # self.open_azavg_only = QtWidgets.QAction("Open &azavg only", self)
+            # self.save_azavg_only = QtWidgets.QAction("Save &azavg only", self)
             self.averaging_gr = QtWidgets.QAction("Selection Analysis", self)
+            #
+            # open_menu = menubar.addMenu("     &Open     ")
+            # open_menu.addAction(self.open_img_file)
+            # self.open_img_stack = open_menu.addMenu("Open image stack")
+            # # open_menu.addAction(self.open_img_stack)
+            # open_menu.addSeparator()
+            # open_menu.addAction(self.open_preset)
+            # open_menu.addAction(self.open_preset_stack)
+            # open_menu.addSeparator()
+            # open_menu.addAction(self.open_azavg_only)
+            # self.open_azavg_stack = open_menu.addMenu("Open azavg stack")
+            #
+            # self.open_img_stack_mrc = QtWidgets.QAction("mrc file stack", self)
+            # self.open_img_stack_txt = QtWidgets.QAction("txt file stack", self)
+            # self.open_img_stack_csv = QtWidgets.QAction("csv file stack", self)
+            # self.open_img_stack_tiff = QtWidgets.QAction("tiff file stack", self)
+            # self.open_img_stack_jpg = QtWidgets.QAction("jpg file stack", self)
+            # self.open_img_stack_jpeg = QtWidgets.QAction("jpeg file stack", self)
+            # self.open_img_stack_png = QtWidgets.QAction("png file stack", self)
+            # self.open_img_stack_custom = QtWidgets.QAction("Custom ...", self)
+            # self.open_img_stack.addAction(self.open_img_stack_mrc)
+            # self.open_img_stack.addAction(self.open_img_stack_txt)
+            # self.open_img_stack.addAction(self.open_img_stack_csv)
+            # self.open_img_stack.addAction(self.open_img_stack_tiff)
+            # self.open_img_stack.addAction(self.open_img_stack_jpg)
+            # self.open_img_stack.addAction(self.open_img_stack_jpeg)
+            # self.open_img_stack.addAction(self.open_img_stack_png)
+            # self.open_img_stack.addAction(self.open_img_stack_custom)
+            #
+            # self.open_azavg_stack_csv = QtWidgets.QAction("csv", self)
+            # self.open_azavg_stack_txt = QtWidgets.QAction("txt", self)
+            # self.open_azavg_stack_azavg_txt = QtWidgets.QAction("azavg.txt", self)
+            # self.open_azavg_stack_azavg_csv = QtWidgets.QAction("azavg.csv", self)
+            # self.open_azavg_stack.addAction(self.open_azavg_stack_csv)
+            # self.open_azavg_stack.addAction(self.open_azavg_stack_txt)
+            # self.open_azavg_stack.addAction(self.open_azavg_stack_azavg_txt)
+            # self.open_azavg_stack.addAction(self.open_azavg_stack_azavg_csv)
+            #
+            # save_menu = menubar.addMenu("     &Save     ")
+            # save_menu.addAction(self.save_preset)
+            # save_menu.addAction(self.save_preset_stack)
+            # save_menu.addAction(self.save_preset_option)
+            # save_menu.addSeparator()
+            # save_menu.addAction(self.save_azavg_only)
 
-            open_menu = menubar.addMenu("     &Open     ")
-            open_menu.addAction(self.open_img_file)
-            self.open_img_stack = open_menu.addMenu("Open image stack")
-            # open_menu.addAction(self.open_img_stack)
-            open_menu.addSeparator()
-            open_menu.addAction(self.open_preset)
-            open_menu.addAction(self.open_preset_stack)
-            open_menu.addSeparator()
-            open_menu.addAction(self.open_azavg_only)
-            self.open_azavg_stack = open_menu.addMenu("Open azavg stack")
-
-            self.open_img_stack_mrc = QtWidgets.QAction("mrc file stack", self)
-            self.open_img_stack_txt = QtWidgets.QAction("txt file stack", self)
-            self.open_img_stack_csv = QtWidgets.QAction("csv file stack", self)
-            self.open_img_stack_tiff = QtWidgets.QAction("tiff file stack", self)
-            self.open_img_stack_jpg = QtWidgets.QAction("jpg file stack", self)
-            self.open_img_stack_jpeg = QtWidgets.QAction("jpeg file stack", self)
-            self.open_img_stack_png = QtWidgets.QAction("png file stack", self)
-            self.open_img_stack_custom = QtWidgets.QAction("Custom ...", self)
-            self.open_img_stack.addAction(self.open_img_stack_mrc)
-            self.open_img_stack.addAction(self.open_img_stack_txt)
-            self.open_img_stack.addAction(self.open_img_stack_csv)
-            self.open_img_stack.addAction(self.open_img_stack_tiff)
-            self.open_img_stack.addAction(self.open_img_stack_jpg)
-            self.open_img_stack.addAction(self.open_img_stack_jpeg)
-            self.open_img_stack.addAction(self.open_img_stack_png)
-            self.open_img_stack.addAction(self.open_img_stack_custom)
-
-            self.open_azavg_stack_csv = QtWidgets.QAction("csv", self)
-            self.open_azavg_stack_txt = QtWidgets.QAction("txt", self)
-            self.open_azavg_stack_azavg_txt = QtWidgets.QAction("azavg.txt", self)
-            self.open_azavg_stack_azavg_csv = QtWidgets.QAction("azavg.csv", self)
-            self.open_azavg_stack.addAction(self.open_azavg_stack_csv)
-            self.open_azavg_stack.addAction(self.open_azavg_stack_txt)
-            self.open_azavg_stack.addAction(self.open_azavg_stack_azavg_txt)
-            self.open_azavg_stack.addAction(self.open_azavg_stack_azavg_csv)
-
-            save_menu = menubar.addMenu("     &Save     ")
-            save_menu.addAction(self.save_preset)
-            save_menu.addAction(self.save_preset_stack)
-            save_menu.addAction(self.save_preset_option)
-            save_menu.addSeparator()
-            save_menu.addAction(self.save_azavg_only)
-
-            utility_menu = menubar.addMenu("     &Utility     ")
-            utility_menu.addAction(self.averaging_gr)
+            # # remove deprecated feature
+            # utility_menu = menubar.addMenu("     &Utility     ")
+            # utility_menu.addAction(self.averaging_gr)
 
             menubar.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
             return menubar
@@ -221,27 +305,26 @@ class DataViewer(QtWidgets.QMainWindow):
 
 
     def sig_binding(self):
-        self.top_menu.open_img_file.triggered.connect(self.menu_open_image_file)
-        self.top_menu.open_img_stack_mrc.triggered.connect(lambda: self.menu_open_image_stack('.mrc'))
-        self.top_menu.open_img_stack_csv.triggered.connect(lambda: self.menu_open_image_stack('.csv'))
-        self.top_menu.open_img_stack_tiff.triggered.connect(lambda: self.menu_open_image_stack('.tiff'))
-        self.top_menu.open_img_stack_png.triggered.connect(lambda: self.menu_open_image_stack('.png'))
-        self.top_menu.open_img_stack_txt.triggered.connect(lambda: self.menu_open_image_stack('.txt'))
-        self.top_menu.open_img_stack_custom.triggered.connect(lambda: self.menu_open_image_stack('.custom'))
-        self.top_menu.open_img_stack_jpg.triggered.connect(lambda: self.menu_open_image_stack('.jpg'))
-        self.top_menu.open_img_stack_jpg.triggered.connect(lambda: self.menu_open_image_stack('.jpeg'))
+        # self.top_menu.open_img_file.triggered.connect(self.menu_open_image_file)
+        # self.top_menu.open_img_stack_mrc.triggered.connect(lambda: self.menu_open_image_stack('.mrc'))
+        # self.top_menu.open_img_stack_csv.triggered.connect(lambda: self.menu_open_image_stack('.csv'))
+        # self.top_menu.open_img_stack_tiff.triggered.connect(lambda: self.menu_open_image_stack('.tiff'))
+        # self.top_menu.open_img_stack_png.triggered.connect(lambda: self.menu_open_image_stack('.png'))
+        # self.top_menu.open_img_stack_txt.triggered.connect(lambda: self.menu_open_image_stack('.txt'))
+        # self.top_menu.open_img_stack_custom.triggered.connect(lambda: self.menu_open_image_stack('.custom'))
+        # self.top_menu.open_img_stack_jpg.triggered.connect(lambda: self.menu_open_image_stack('.jpg'))
+        # self.top_menu.open_img_stack_jpg.triggered.connect(lambda: self.menu_open_image_stack('.jpeg'))
+        # self.top_menu.open_preset.triggered.connect(self.menu_load_preset)
+        # self.top_menu.save_preset.triggered.connect(self.menu_save_preset)
+        # self.top_menu.open_preset_stack.triggered.connect(self.menu_open_preset_stack)
+        # self.top_menu.save_preset_stack.triggered.connect(self.menu_save_presets)
+        # self.top_menu.open_azavg_only.triggered.connect(self.menu_open_azavg_only)
+        # self.top_menu.open_azavg_stack_csv.triggered.connect(lambda : self.menu_open_azavg_stack("csv"))
+        # self.top_menu.open_azavg_stack_txt.triggered.connect(lambda: self.menu_open_azavg_stack("txt"))
+        # self.top_menu.open_azavg_stack_azavg_csv.triggered.connect(lambda: self.menu_open_azavg_stack("azavg.csv"))
+        # self.top_menu.open_azavg_stack_azavg_txt.triggered.connect(lambda: self.menu_open_azavg_stack("azavg.txt"))
+        # self.top_menu.save_azavg_only.triggered.connect(self.menu_save_azavg_only)
 
-
-        self.top_menu.open_preset.triggered.connect(self.menu_load_preset)
-        self.top_menu.save_preset.triggered.connect(self.menu_save_preset)
-        self.top_menu.open_preset_stack.triggered.connect(self.menu_open_preset_stack)
-        self.top_menu.save_preset_stack.triggered.connect(self.menu_save_presets)
-        self.top_menu.open_azavg_only.triggered.connect(self.menu_open_azavg_only)
-        self.top_menu.open_azavg_stack_csv.triggered.connect(lambda : self.menu_open_azavg_stack("csv"))
-        self.top_menu.open_azavg_stack_txt.triggered.connect(lambda: self.menu_open_azavg_stack("txt"))
-        self.top_menu.open_azavg_stack_azavg_csv.triggered.connect(lambda: self.menu_open_azavg_stack("azavg.csv"))
-        self.top_menu.open_azavg_stack_azavg_txt.triggered.connect(lambda: self.menu_open_azavg_stack("azavg.txt"))
-        self.top_menu.save_azavg_only.triggered.connect(self.menu_save_azavg_only)
         self.top_menu.combo_dataQuality.currentIndexChanged.connect(self.set_data_quality)
         self.top_menu.averaging_gr.triggered.connect(self.menu_util_averaging_gr)
         self.PDF_analyser.graph_Iq_panel.setting.spinBox_range_right.valueChanged.connect(self.set_data_quality)
@@ -259,7 +342,8 @@ class DataViewer(QtWidgets.QMainWindow):
         # to reduce the memory
         if not len(self.dcs) == 1 and hasattr(self,"current_page")\
                 and len(self.dcs) > self.current_page:
-            self.dcs[self.current_page].release()
+            # self.dcs[self.current_page].release()
+            pass
         self.current_page = index
 
         # update quality number
@@ -270,7 +354,7 @@ class DataViewer(QtWidgets.QMainWindow):
             self.top_menu.combo_dataQuality.setCurrentIndex(0)
 
         # show image
-        self.dcs[self.current_page].image_ready()
+        # self.dcs[self.current_page].image_ready()
 
         # Update profile_extraction ui
         self.profile_extraction.update_dc(self.dcs[self.current_page])
@@ -285,6 +369,9 @@ class DataViewer(QtWidgets.QMainWindow):
         # Set index label
         self.top_menu.lbl_current_num.setText(str(self.current_page + 1) + "/" + str(len(self.dcs)))
 
+        # mask module
+        self.profile_extraction.mask_module.update_img(self.dcs[self.current_page].data)
+
     def apply_element_to_all(self, datacube):
         for dc in self.dcs:
             dc.ds = datacube.ds
@@ -298,7 +385,7 @@ class DataViewer(QtWidgets.QMainWindow):
             return
         load_paths.extend(path)
         self.dcs.clear()
-        self.dcs.extend([DataCube(path,'image') for path in load_paths])
+        self.dcs.extend([PDFCube(path,'image') for path in load_paths])
         self.load_dc(0)
 
     def menu_open_image_stack(self, file_type):
@@ -310,7 +397,7 @@ class DataViewer(QtWidgets.QMainWindow):
         if len(load_paths) == 0:
             QtWidgets.QMessageBox.about(None, "No file found", "No file found")
             return
-        dcs = [DataCube(path, 'image') for path in load_paths]
+        dcs = [PDFCube(path, 'image') for path in load_paths]
         if dcs is None:
             return
         self.dcs.clear()
@@ -332,27 +419,28 @@ class DataViewer(QtWidgets.QMainWindow):
 
     def menu_open_azavg_only(self, azavg=None):  # azavg arguments is for averaging_multiple_gr.py
         if azavg is None or azavg is False:
-            fp, _ = QtWidgets.QFileDialog.getOpenFileName(self, filter="csv (*.csv); text file (*.txt)")
-            if fp is '':
+            fp, _ = QtWidgets.QFileDialog.getOpenFileName(self, filter="profile (*.csv *.txt)")
+            if fp == '':
                 return
-            dc = DataCube(file_path=fp,file_type='azavg')
+            dc = PDFCube(fp,'profile')
             self.dcs.clear()
             self.dcs.append(dc)
         else:
             self.dcs.clear()
-            self.dcs.append(DataCube())
+            self.dcs.append(PDFCube())
             self.dcs[0].azavg = azavg
         self.load_dc(0)
 
     def menu_open_azavg_stack(self, ext):  # azavg arguments is for averaging_multiple_gr.py
         dirpth = QtWidgets.QFileDialog.getExistingDirectory(self, '')
-        if dirpth is '':
+        if dirpth == '':
             return
         lst1 = file.get_file_list_from_path(dirpth, ext)
 
         if len(lst1) == 0:
             QMessageBox.about(self, "", "No file detected")
-        dc = [DataCube(file_path=pth, file_type='azavg') for pth in lst1]
+            return
+        dc = [PDFCube(file_path=pth, file_type='profile') for pth in lst1]
         self.dcs.clear()
         self.dcs.extend(dc)
         self.load_dc(0)
@@ -365,17 +453,67 @@ class DataViewer(QtWidgets.QMainWindow):
         self.dcs.append(dc)
         self.load_dc(0)
 
-    def menu_save_preset(self):
-        file.save_preset_default(self.dcs[self.current_page], self)
+    def menu_save_current_preset(self):
+        if len(self.dcs) == 0:
+            QMessageBox.about(self,"","No data is loaded")
+            return
 
-    def menu_save_presets(self):
+        if not self.dcs[0].preset_file_path:
+            self.menu_save_current_preset_as()
+            return
+
+        self.PDF_analyser.manualfit()
+        file.save_preset([self.dcs[self.current_page]], self, None, stack=False, saveas=False)
+
+    def menu_save_current_preset_as(self):
+        if len(self.dcs) == 0:
+            QMessageBox.about(self,"","No data is loaded")
+            return
+
+        self.PDF_analyser.manualfit()
+        fpth = QtWidgets.QFileDialog.getExistingDirectory(self,"")
+        if not fpth:
+            return
+        file.save_preset([self.dcs[self.current_page]], self, fpth, stack=False, saveas=True)
+
+    def menu_save_all_preset(self):
+        if len(self.dcs) == 0:
+            QMessageBox.about(self,"","No data is loaded")
+            return
+
+        if not self.dcs[0].preset_file_path:
+            self.menu_save_all_preset_as()
+            return
+
+        temp_page_num = self.current_page
         for i in range(len(self.dcs)):
             self.load_dc(i)
-            self.menu_save_preset()
+            self.PDF_analyser.manualfit()
+            file.save_preset([self.dcs[self.current_page]], self, None, stack=True, saveas=False)
+        self.load_dc(temp_page_num)
+
+    def menu_save_all_preset_as(self):
+        if len(self.dcs) == 0:
+            QMessageBox.about(self,"","No data is loaded")
+            return
+
+        fpth = QtWidgets.QFileDialog.getExistingDirectory(self, "")
+        if not fpth:
+            return
+
+        prev_page = self.current_page
+        for i in range(len(self.dcs)):
+            self.load_dc(i)
+            self.PDF_analyser.manualfit()
+            file.save_preset([self.dcs[self.current_page]], self, fpth, stack=True, saveas=True)
+        self.load_dc(prev_page)
 
     def menu_save_azavg_only(self):
         if self.dcs[self.current_page].azavg is not None:
             file.save_azavg_only(self.dcs[self.current_page].azavg)
+
+    def menu_save_azavg_stack(self):
+        file.save_azavg_stack(self.dcs)
 
     def btn_page_left_clicked(self):
         if hasattr(self, "current_page") and not self.current_page == 0:
@@ -394,11 +532,7 @@ class DataViewer(QtWidgets.QMainWindow):
             self.btn_page_right_clicked()
 
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
-        util.default_setting.intensity_range_1 = self.profile_extraction.control_panel.settingPanel.spinBox_irange1.value()
-        util.default_setting.intensity_range_2 = self.profile_extraction.control_panel.settingPanel.spinBox_irange2.value()
-        util.default_setting.slice_count = self.profile_extraction.control_panel.settingPanel.spinBox_slice_count.value()
-        util.default_setting.show_center_line = self.profile_extraction.control_panel.settingPanel.chkBox_show_centerLine.isChecked()
-        util.default_setting.save_settings()
+        self.save_default_setting()
         super().closeEvent(a0)
 
 
