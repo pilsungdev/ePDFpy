@@ -15,7 +15,7 @@ def find_polygon(raw_img):
     gkern2d = np.outer(gkern1d, gkern1d)
     # pd.DataFrame(gkern2d)
 
-    img = np.abs(raw_img) + 1
+    img = np.abs(raw_img.astype(float)) + 1
     log_img = np.log(img)
     # blur = cv2.GaussianBlur(log_img,(19,19),0)  # Smoothing
     blur = cv2.filter2D(log_img, -1, gkern2d)
